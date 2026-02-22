@@ -52,7 +52,6 @@ int main(int argc, char** argv){
         for (auto& [name, rating] : movies) {
             cout << name << ", " << rating << "\n";
         }
-        cout << "\n";
 
         return 0;
     }
