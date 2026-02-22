@@ -46,16 +46,15 @@ int main(int argc, char** argv){
 
     sort(movies.begin(), movies.end());
 
-    for (auto& [name, rating] : movies) {
-         cout << name << ", " << rating << "\n";
-    }
-
-
     movieFile.close();
 
     if (argc == 2){
-            //print all the movies in ascending alphabetical order of movie names
-            return 0;
+        for (auto& [name, rating] : movies) {
+            cout << name << ", " << rating << "\n";
+        }
+        cout << "\n";
+
+        return 0;
     }
 
     ifstream prefixFile (argv[2]);
