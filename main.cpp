@@ -19,7 +19,7 @@ bool parseLine(string &line, string &movieName, double &movieRating);
 int main(int argc, char** argv){
     // auto start = high_resolution_clock::now();
 
-    cout << std::fixed << std::setprecision(1);
+    //cout << std::fixed << std::setprecision(1);
 
     if (argc < 2){
         cerr << "Not enough arguments provided (need at least 1 argument)." << endl;
@@ -84,11 +84,12 @@ int main(int argc, char** argv){
             return movie.first < key;
         });
 
-        vector<pair<string, double>> prefixArray;
-
-        for (auto it = lower; it != last; ++it) {
-            prefixArray.push_back(*it);
+        if (lower == last) {
+            results.push_back({prefix, "", -1});
+            continue;
         }
+
+        vector<pair<string, double>> prefixArray(lower, last);
 
         sort(prefixArray.begin(), prefixArray.end(), [](const pair<string, double>& a, const pair<string, double>& b) {
             return (a.second != b.second) ? a.second > b.second : a.first < b.first;
@@ -97,13 +98,8 @@ int main(int argc, char** argv){
         for (auto& [name, rating] : prefixArray) {
             cout << name << ", " << rating << "\n";
         }
-
-        if (prefixArray.size() > 0) {
-            cout << "\n";
-            results.push_back({prefix, prefixArray[0].first, prefixArray[0].second});
-        } else {
-            results.push_back({prefix, "", -1});
-        }
+        cout << "\n";
+        results.push_back({prefix, prefixArray[0].first, prefixArray[0].second});
     }
 
     for (auto& [prefix, name, rating] : results) {
