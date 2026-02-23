@@ -6,20 +6,27 @@
 #include <string>
 #include <vector>
 #include <algorithm>
-#include <iomanip>
 #include <chrono>
+#include <charconv>
 using namespace std;
 using namespace std::chrono;
 
 #include "utilities.h"
 #include "movies.h"
 
-bool parseLine(string &line, string &movieName, double &movieRating);
+using Movie = pair<string_view, double>;
+
+static inline void parseFile(string_view file, vector<Movie>& movies);
+static inline bool parseLine(string_view line, vector<Movie>& movies);
+static inline void appendOneDecimal(string& out, double value);
 
 int main(int argc, char** argv){
     // auto start = high_resolution_clock::now();
+    ios::sync_with_stdio(false);
+    cin.tie(nullptr);
 
-    cout << std::fixed << std::setprecision(1);
+    string out;
+    out.reserve(10000000);
 
     if (argc < 2){
         cerr << "Not enough arguments provided (need at least 1 argument)." << endl;
@@ -34,25 +41,38 @@ int main(int argc, char** argv){
         exit(1);
     }
 
-    // Create an object of a STL data-structure to store all the movies
-    string line, movieName;
-    double movieRating;
-    vector<pair<string, double>> movies;
+    vector<Movie> movies;
 
-    // Read each file and store the name and rating
-    while (getline(movieFile, line) && parseLine(line, movieName, movieRating)){
-        movies.push_back({movieName, movieRating});
+    movieFile.seekg(0, std::ios::end);
+    std::size_t size = movieFile.tellg();
+    movieFile.seekg(0, std::ios::beg);
+
+    std::string f(size, '\0');
+    movieFile.read(&f[0], size);
+
+    size_t approxLines = 0;
+    for (char c : f) {
+        if (c == '\n') ++approxLines;
     }
+    movies.reserve(approxLines + 1);
 
-    sort(movies.begin(), movies.end());
+    parseFile(f, movies);
+
+    sort(movies.begin(), movies.end(), [](const Movie& a, const Movie& b) {
+        return a.first < b.first;
+    });
 
     movieFile.close();
 
     if (argc == 2){
         for (auto& [name, rating] : movies) {
-            cout << name << ", " << rating << "\n";
+            out.append(name.data(), name.size());
+            out += ", ";
+            appendOneDecimal(out, rating);
+            out.push_back('\n');
         }
 
+        cout.write(out.data(), static_cast<std::streamsize>(out.size()));
         return 0;
     }
 
@@ -63,6 +83,7 @@ int main(int argc, char** argv){
         exit(1);
     }
 
+    string line;
     vector<string> prefixes;
     while (getline (prefixFile, line)) {
         if (!line.empty()) {
@@ -70,46 +91,65 @@ int main(int argc, char** argv){
         }
     }
 
-    vector<tuple<string, string, double>> results;
+    vector<tuple<string_view, string_view, double>> prefixResults;
+    prefixResults.reserve(prefixes.size());
 
     for (string& prefix : prefixes) {
-        auto lower = lower_bound(movies.begin(), movies.end(), prefix, [](const pair<string,double>& movie, const string& key) {
+        auto lower = lower_bound(movies.begin(), movies.end(), prefix, [](const Movie& movie, const string& key) {
             return movie.first < key;
         });
 
         string next = prefix;
         next.back()++;
 
-        auto last = lower_bound(movies.begin(), movies.end(), next, [](const pair<string,double>& movie, const string& key) {
+        auto last = lower_bound(movies.begin(), movies.end(), next, [](const Movie& movie, const string& key) {
             return movie.first < key;
         });
 
         if (lower == last) {
-            cout << "No movies found with prefix " << prefix << "\n";
+            out += "No movies found with prefix ";
+            out += prefix;
+            out.push_back('\n');
             continue;
         }
 
-        vector<pair<string, double>> prefixArray(lower, last);
+        vector<const Movie*> prefixArray;
+        prefixArray.reserve(static_cast<size_t>(last - lower));
+        for (auto it = lower; it != last; ++it) {
+            prefixArray.push_back(&(*it));
+        }
 
-        sort(prefixArray.begin(), prefixArray.end(), [](const pair<string, double>& a, const pair<string, double>& b) {
-            return (a.second != b.second) ? a.second > b.second : a.first < b.first;
+        sort(prefixArray.begin(), prefixArray.end(), [](const Movie* a, const Movie* b) {
+            return (a->second != b->second) ? a->second > b->second : a->first < b->first;
         });
 
-        for (auto& [name, rating] : prefixArray) {
-            cout << name << ", " << rating << "\n";
+        for (const auto* movie : prefixArray) {
+            out.append(movie->first.data(), movie->first.size());
+            out += ", ";
+            appendOneDecimal(out, movie->second);
+            out.push_back('\n');
         }
-        cout << "\n";
-        results.push_back({prefix, prefixArray[0].first, prefixArray[0].second});
+        out.push_back('\n');
+
+        prefixResults.emplace_back(string_view(prefix), prefixArray[0]->first, prefixArray[0]->second);
     }
 
-    for (auto& [prefix, name, rating] : results) {
-        cout << "Best movie with prefix " << prefix << " is: " << name << " with rating " << rating << "\n";
+    for (const auto& [prefix, name, rating] : prefixResults) {
+        out += "Best movie with prefix ";
+        out.append(prefix.data(), prefix.size());
+        out += " is: ";
+        out.append(name.data(), name.size());
+        out += " with rating ";
+        appendOneDecimal(out, rating);
+        out.push_back('\n');
     }
+
+    cout.write(out.data(), static_cast<std::streamsize>(out.size()));
 
     // auto end = high_resolution_clock::now();
     // std::chrono::duration<double, std::milli> ms_double = end - start;
-
-    // cout << "Time: " << ms_double << "\n";
+    // cerr << "Time: " << ms_double << "\n";
+    // cerr << out.size() << "\n";
 
     return 0;
 }
@@ -160,12 +200,110 @@ I think the space complexity can be improved to not have the m*l because you cou
 Overall, this approach prioritizes time complexity but has decent space complexity.
  */
 
-bool parseLine(string &line, string &movieName, double &movieRating) {
-    int commaIndex = line.find_last_of(",");
-    movieName = line.substr(0, commaIndex);
-    movieRating = stod(line.substr(commaIndex+1));
-    if (movieName[0] == '\"') {
-        movieName = movieName.substr(1, movieName.length() - 2);
+// bool parseLine(string &line, string &movieName, double &movieRating) {
+//     int commaIndex = line.find_last_of(",");
+//     movieName = line.substr(0, commaIndex);
+//     movieRating = stod(line.substr(commaIndex+1));
+//     if (movieName[0] == '\"') {
+//         movieName = movieName.substr(1, movieName.length() - 2);
+//     }
+//     return true;
+// }
+
+// bool parseLine(string &line, vector<pair<string, double>>& movies) {
+//     int commaIndex = line.find_last_of(",");
+//     movies.emplace_back(line.substr(0, commaIndex), stod(line.substr(commaIndex+1)));
+//     string& movieName = movies[movies.size()-1].first;
+//     if (movieName[0] == '\"') {
+//         movieName = movieName.substr(1, movieName.length() - 2);
+//     }
+//     return true;
+// }
+
+static inline bool parseLine(std::string_view line, std::vector<Movie>& movies)
+{
+    // Trim trailing \r (Windows newlines) if present
+    if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
+
+    const size_t comma = line.rfind(',');
+    if (comma == std::string_view::npos) return false;
+
+    std::string_view name = line.substr(0, comma);
+    std::string_view rating_sv = line.substr(comma + 1);
+
+    if (name.size() >= 2 && name.front() == '"' && name.back() == '"') {
+        name = name.substr(1, name.size() - 2);
     }
+
+    size_t i = 0;
+    while (i < rating_sv.size() && (rating_sv[i] == ' ' || rating_sv[i] == '\t')) ++i;
+    if (i == rating_sv.size()) return false;
+
+    bool neg = false;
+    if (rating_sv[i] == '+' || rating_sv[i] == '-') {
+        neg = (rating_sv[i] == '-');
+        ++i;
+    }
+
+    if (i == rating_sv.size() || rating_sv[i] < '0' || rating_sv[i] > '9') return false;
+
+    int whole = 0;
+    while (i < rating_sv.size() && rating_sv[i] >= '0' && rating_sv[i] <= '9') {
+        whole = whole * 10 + (rating_sv[i] - '0');
+        ++i;
+    }
+
+    int tenth = 0;
+    if (i < rating_sv.size() && rating_sv[i] == '.') {
+        ++i;
+        if (i < rating_sv.size() && rating_sv[i] >= '0' && rating_sv[i] <= '9') {
+            tenth = rating_sv[i] - '0';
+            ++i;
+        }
+        while (i < rating_sv.size() && rating_sv[i] >= '0' && rating_sv[i] <= '9') ++i;
+    }
+
+    while (i < rating_sv.size() && (rating_sv[i] == ' ' || rating_sv[i] == '\t')) ++i;
+    if (i != rating_sv.size()) return false;
+
+    double rating = static_cast<double>(whole) + static_cast<double>(tenth) * 0.1;
+    if (neg) rating = -rating;
+
+    movies.emplace_back(name, rating);
     return true;
+}
+
+static inline void appendOneDecimal(string& out, double value) {
+    if (value < 0) {
+        out.push_back('-');
+        value = -value;
+    }
+
+    const int scaled = static_cast<int>(value * 10.0 + 0.5);
+    const int whole = scaled / 10;
+    const int tenth = scaled % 10;
+
+    char buf[24];
+    auto [ptr, ec] = to_chars(buf, buf + sizeof(buf), whole);
+    if (ec == std::errc{}) {
+        out.append(buf, static_cast<size_t>(ptr - buf));
+    } else {
+        out += "0";
+    }
+
+    out.push_back('.');
+    out.push_back(static_cast<char>('0' + tenth));
+}
+
+static inline void parseFile(string_view file, vector<Movie>& movies) {
+    size_t start = 0;
+    while (start < file.size()) {
+        size_t end = file.find('\n', start);
+        if (end == string_view::npos) end = file.size();
+
+        string_view line = file.substr(start, end - start);
+        parseLine(line, movies);
+
+        start = end + 1;
+    }
 }
