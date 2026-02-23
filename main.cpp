@@ -19,7 +19,7 @@ bool parseLine(string &line, string &movieName, double &movieRating);
 int main(int argc, char** argv){
     // auto start = high_resolution_clock::now();
 
-    //cout << std::fixed << std::setprecision(1);
+    cout << std::fixed << std::setprecision(1);
 
     if (argc < 2){
         cerr << "Not enough arguments provided (need at least 1 argument)." << endl;
@@ -85,7 +85,7 @@ int main(int argc, char** argv){
         });
 
         if (lower == last) {
-            results.push_back({prefix, "", -1});
+            cout << "No movies found with prefix " << prefix << "\n";
             continue;
         }
 
@@ -103,11 +103,7 @@ int main(int argc, char** argv){
     }
 
     for (auto& [prefix, name, rating] : results) {
-        if (rating != -1) {
-            cout << "Best movie with prefix " << prefix << " is: " << name << " with rating " << rating << "\n";
-        } else {
-            cout << "No movies found with prefix " << prefix << "\n";
-        }
+        cout << "Best movie with prefix " << prefix << " is: " << name << " with rating " << rating << "\n";
     }
 
     // auto end = high_resolution_clock::now();
