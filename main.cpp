@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <iomanip>
 #include <chrono>
 #include <charconv>
 using namespace std;
@@ -14,19 +15,22 @@ using namespace std::chrono;
 #include "utilities.h"
 #include "movies.h"
 
-using Movie = pair<string_view, double>;
+using u8 = uint8_t;
+
+using Movie = pair<string_view, u8>;
 
 static inline void parseFile(string_view file, vector<Movie>& movies);
 static inline bool parseLine(string_view line, vector<Movie>& movies);
-static inline void appendOneDecimal(string& out, double value);
+static inline void appendOneDecimal(string& out, u8 value);
 
 int main(int argc, char** argv){
     // auto start = high_resolution_clock::now();
+
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
 
     string out;
-    out.reserve(10000000);
+    out.reserve(3000000);
 
     if (argc < 2){
         cerr << "Not enough arguments provided (need at least 1 argument)." << endl;
@@ -91,7 +95,7 @@ int main(int argc, char** argv){
         }
     }
 
-    vector<tuple<string_view, string_view, double>> prefixResults;
+    vector<tuple<string_view, string_view, u8>> prefixResults;
     prefixResults.reserve(prefixes.size());
 
     for (string& prefix : prefixes) {
@@ -143,7 +147,6 @@ int main(int argc, char** argv){
         appendOneDecimal(out, rating);
         out.push_back('\n');
     }
-
     cout.write(out.data(), static_cast<std::streamsize>(out.size()));
 
     // auto end = high_resolution_clock::now();
@@ -200,31 +203,8 @@ I think the space complexity can be improved to not have the m*l because you cou
 Overall, this approach prioritizes time complexity but has decent space complexity.
  */
 
-// bool parseLine(string &line, string &movieName, double &movieRating) {
-//     int commaIndex = line.find_last_of(",");
-//     movieName = line.substr(0, commaIndex);
-//     movieRating = stod(line.substr(commaIndex+1));
-//     if (movieName[0] == '\"') {
-//         movieName = movieName.substr(1, movieName.length() - 2);
-//     }
-//     return true;
-// }
-
-// bool parseLine(string &line, vector<pair<string, double>>& movies) {
-//     int commaIndex = line.find_last_of(",");
-//     movies.emplace_back(line.substr(0, commaIndex), stod(line.substr(commaIndex+1)));
-//     string& movieName = movies[movies.size()-1].first;
-//     if (movieName[0] == '\"') {
-//         movieName = movieName.substr(1, movieName.length() - 2);
-//     }
-//     return true;
-// }
-
 static inline bool parseLine(std::string_view line, std::vector<Movie>& movies)
 {
-    // Trim trailing \r (Windows newlines) if present
-    if (!line.empty() && line.back() == '\r') line.remove_suffix(1);
-
     const size_t comma = line.rfind(',');
     if (comma == std::string_view::npos) return false;
 
@@ -235,64 +215,23 @@ static inline bool parseLine(std::string_view line, std::vector<Movie>& movies)
         name = name.substr(1, name.size() - 2);
     }
 
-    size_t i = 0;
-    while (i < rating_sv.size() && (rating_sv[i] == ' ' || rating_sv[i] == '\t')) ++i;
-    if (i == rating_sv.size()) return false;
+    u8 whole = rating_sv[0];
 
-    bool neg = false;
-    if (rating_sv[i] == '+' || rating_sv[i] == '-') {
-        neg = (rating_sv[i] == '-');
-        ++i;
+    u8 tenth = 0;
+    if (rating_sv.size() > 2) {
+        tenth = rating_sv[2];
     }
 
-    if (i == rating_sv.size() || rating_sv[i] < '0' || rating_sv[i] > '9') return false;
-
-    int whole = 0;
-    while (i < rating_sv.size() && rating_sv[i] >= '0' && rating_sv[i] <= '9') {
-        whole = whole * 10 + (rating_sv[i] - '0');
-        ++i;
-    }
-
-    int tenth = 0;
-    if (i < rating_sv.size() && rating_sv[i] == '.') {
-        ++i;
-        if (i < rating_sv.size() && rating_sv[i] >= '0' && rating_sv[i] <= '9') {
-            tenth = rating_sv[i] - '0';
-            ++i;
-        }
-        while (i < rating_sv.size() && rating_sv[i] >= '0' && rating_sv[i] <= '9') ++i;
-    }
-
-    while (i < rating_sv.size() && (rating_sv[i] == ' ' || rating_sv[i] == '\t')) ++i;
-    if (i != rating_sv.size()) return false;
-
-    double rating = static_cast<double>(whole) + static_cast<double>(tenth) * 0.1;
-    if (neg) rating = -rating;
+    u8 rating = whole * 10 + tenth;
 
     movies.emplace_back(name, rating);
     return true;
 }
 
-static inline void appendOneDecimal(string& out, double value) {
-    if (value < 0) {
-        out.push_back('-');
-        value = -value;
-    }
-
-    const int scaled = static_cast<int>(value * 10.0 + 0.5);
-    const int whole = scaled / 10;
-    const int tenth = scaled % 10;
-
-    char buf[24];
-    auto [ptr, ec] = to_chars(buf, buf + sizeof(buf), whole);
-    if (ec == std::errc{}) {
-        out.append(buf, static_cast<size_t>(ptr - buf));
-    } else {
-        out += "0";
-    }
-
+static inline void appendOneDecimal(string& out, u8 value) {
+    out.push_back('0' + (value / 10));
     out.push_back('.');
-    out.push_back(static_cast<char>('0' + tenth));
+    out.push_back('0' + (value % 10));
 }
 
 static inline void parseFile(string_view file, vector<Movie>& movies) {
