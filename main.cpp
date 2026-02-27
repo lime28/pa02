@@ -63,7 +63,7 @@ int main(int argc, char** argv){
     parseFile(f, movies);
 
     sort(movies.begin(), movies.end(), [](const Movie& a, const Movie& b) {
-        return a.first.substr(0, 15) < b.first.substr(0, 15);
+        return a.first < b.first;
     });
 
     movieFile.close();
