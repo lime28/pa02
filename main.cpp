@@ -24,12 +24,13 @@ static inline bool parseLine(string_view line, vector<Movie>& movies);
 static inline void appendOneDecimal(string& out, u8 value);
 
 int main(int argc, char** argv){
+    // auto start = high_resolution_clock::now();
 
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
 
     string out;
-    out.reserve(3000000);
+    out.reserve(2000000);
 
     if (argc < 2){
         cerr << "Not enough arguments provided (need at least 1 argument)." << endl;
@@ -61,13 +62,9 @@ int main(int argc, char** argv){
 
     parseFile(f, movies);
 
-    auto start = high_resolution_clock::now();
-
     sort(movies.begin(), movies.end(), [](const Movie& a, const Movie& b) {
         return a.first.substr(0, 7) < b.first.substr(0, 7);
     });
-
-    auto end = high_resolution_clock::now();
 
     movieFile.close();
 
@@ -152,9 +149,10 @@ int main(int argc, char** argv){
     }
     cout.write(out.data(), static_cast<std::streamsize>(out.size()));
 
-    std::chrono::duration<double, std::milli> ms_double = end - start;
-    cerr << "Time: " << ms_double << "\n";
-    cerr << out.size() << "\n";
+    // auto end = high_resolution_clock::now();
+    // std::chrono::duration<double, std::milli> ms_double = end - start;
+    // cerr << "Time: " << ms_double << "\n";
+    // cerr << out.size() << "\n";
 
     return 0;
 }
