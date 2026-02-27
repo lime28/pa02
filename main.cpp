@@ -24,7 +24,6 @@ static inline bool parseLine(string_view line, vector<Movie>& movies);
 static inline void appendOneDecimal(string& out, u8 value);
 
 int main(int argc, char** argv){
-    // auto start = high_resolution_clock::now();
 
     ios::sync_with_stdio(false);
     cin.tie(nullptr);
@@ -62,9 +61,13 @@ int main(int argc, char** argv){
 
     parseFile(f, movies);
 
+    auto start = high_resolution_clock::now();
+
     sort(movies.begin(), movies.end(), [](const Movie& a, const Movie& b) {
-        return a.first < b.first;
+        return a.first.substr(0, 7) < b.first.substr(0, 7);
     });
+
+    auto end = high_resolution_clock::now();
 
     movieFile.close();
 
@@ -149,10 +152,9 @@ int main(int argc, char** argv){
     }
     cout.write(out.data(), static_cast<std::streamsize>(out.size()));
 
-    // auto end = high_resolution_clock::now();
-    // std::chrono::duration<double, std::milli> ms_double = end - start;
-    // cerr << "Time: " << ms_double << "\n";
-    // cerr << out.size() << "\n";
+    std::chrono::duration<double, std::milli> ms_double = end - start;
+    cerr << "Time: " << ms_double << "\n";
+    cerr << out.size() << "\n";
 
     return 0;
 }
@@ -215,11 +217,11 @@ static inline bool parseLine(std::string_view line, std::vector<Movie>& movies)
         name = name.substr(1, name.size() - 2);
     }
 
-    u8 whole = rating_sv[0];
+    u8 whole = rating_sv[0] - '0';
 
     u8 tenth = 0;
     if (rating_sv.size() > 2) {
-        tenth = rating_sv[2];
+        tenth = rating_sv[2] - '0';
     }
 
     u8 rating = whole * 10 + tenth;
