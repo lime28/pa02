@@ -63,7 +63,7 @@ int main(int argc, char** argv){
     parseFile(f, movies);
 
     sort(movies.begin(), movies.end(), [](const Movie& a, const Movie& b) {
-        return a.first.substr(0, 7) < b.first.substr(0, 7);
+        return a.first.substr(0, 15) < b.first.substr(0, 15);
     });
 
     movieFile.close();
@@ -218,7 +218,9 @@ static inline bool parseLine(std::string_view line, std::vector<Movie>& movies)
     u8 whole = rating_sv[0] - '0';
 
     u8 tenth = 0;
-    if (rating_sv.size() > 2) {
+    if (rating_sv.size() > 1 && rating_sv[1] == '0') {
+        whole = 10;
+    } else if (rating_sv.size() > 2) {
         tenth = rating_sv[2] - '0';
     }
 
