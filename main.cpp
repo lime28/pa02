@@ -214,7 +214,7 @@ static inline bool parseLine(std::string_view line, std::vector<Movie>& movies)
     if (name.size() >= 2 && name.front() == '"' && name.back() == '"') {
         name = name.substr(1, name.size() - 2);
     }
-
+    if (rating_sv[0] < '0' || rating_sv[0] > '9') rating_sv = rating_sv.substr(1);
     u8 whole = rating_sv[0] - '0';
 
     u8 tenth = 0;
@@ -231,9 +231,16 @@ static inline bool parseLine(std::string_view line, std::vector<Movie>& movies)
 }
 
 static inline void appendOneDecimal(string& out, u8 value) {
-    out.push_back('0' + (value / 10));
-    out.push_back('.');
-    out.push_back('0' + (value % 10));
+    if (value == 100) {
+        out.push_back('1');
+        out.push_back('0');
+    } else {
+        out.push_back('0' + (value / 10));
+        if (value % 10 != 0) {
+            out.push_back('.');
+            out.push_back('0' + (value % 10));
+        }
+    }
 }
 
 static inline void parseFile(string_view file, vector<Movie>& movies) {
